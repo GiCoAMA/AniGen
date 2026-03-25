@@ -1,0 +1,18 @@
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 虚拟环境
+.venv/
+env/
+venv/
+
+# 环境变量与本地数据库
+.env
+*.db
+anigen.db
+
+# IDE 配置
+.vscode/
+.cursor/

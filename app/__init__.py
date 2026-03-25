@@ -1,0 +1,2 @@
+"""AniGen application package."""
+

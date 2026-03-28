@@ -1,13 +1,18 @@
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+    )
+
     app_title: str = "AniGen"
-    # Development DB (SQLite). Production can pass a PostgreSQL URL.
+    # SQLite in Docker: absolute path /app/data (four slashes after scheme). Override via DATABASE_URL.
     # Example (PostgreSQL): `postgresql+asyncpg://user:pass@host:5432/dbname`
-    database_url: str = "sqlite:///./anigen.db"
+    database_url: str = "sqlite+aiosqlite:////app/data/anigen.db"
     redis_host: str = "localhost"
     redis_port: int = 6379
     # Stable Diffusion WebUI txt2img API. Override with env `SD_API_URL`.
@@ -17,4 +22,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

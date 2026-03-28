@@ -1,4 +1,9 @@
+import asyncio
+import base64
+import binascii
+import json
 import logging
+from pathlib import Path
 from typing import Any, Optional
 from uuid import UUID
 
@@ -18,7 +23,16 @@ STATUS_PENDING: TaskStatus = "PENDING"
 STATUS_COMPLETED: TaskStatus = "COMPLETED"
 STATUS_FAILED: TaskStatus = "FAILED"
 
-MOCK_IMAGE_URL = "http://dummy-s3/image.png"
+# Project root: app/services/image_service.py -> parents[2] == repo root
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+STATIC_IMAGES_DIR = _PROJECT_ROOT / "static" / "images"
+
+SD_REQUEST_TIMEOUT_SECONDS = 60.0
+
+
+def _write_image_file(path: Path, data: bytes) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
 
 
 async def create_image_task(session: AsyncSession, task_id: UUID, prompt: str) -> None:
@@ -44,6 +58,22 @@ async def get_task_status(session: AsyncSession, task_id: UUID) -> Optional[Task
     return result.scalar_one_or_none()
 
 
+async def get_task_status_and_image_url(
+    session: AsyncSession, task_id: UUID
+) -> Optional[tuple[TaskStatus, Optional[str]]]:
+    """Fetch status and image_url for task detail responses."""
+
+    result = await session.execute(
+        select(ImageTask.status, ImageTask.image_url).where(
+            ImageTask.id == str(task_id)
+        )
+    )
+    row = result.one_or_none()
+    if row is None:
+        return None
+    return row[0], row[1]
+
+
 async def _update_task(
     task_uuid: UUID,
     *,
@@ -61,7 +91,7 @@ async def _update_task(
 
 
 async def generate_image_task(ctx: dict[str, Any], task_id: str) -> None:
-    """Call SD WebUI txt2img, then update task row."""
+    """Call SD WebUI txt2img, persist image under static/images, update DB."""
 
     _ = ctx
     task_uuid = UUID(task_id)
@@ -78,7 +108,7 @@ async def generate_image_task(ctx: dict[str, Any], task_id: str) -> None:
         return
 
     try:
-        timeout = httpx.Timeout(30.0)
+        timeout = httpx.Timeout(SD_REQUEST_TIMEOUT_SECONDS)
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
                 settings.sd_api_url,
@@ -89,18 +119,73 @@ async def generate_image_task(ctx: dict[str, Any], task_id: str) -> None:
         await _update_task(task_uuid, status=STATUS_FAILED)
         return
 
-    if response.is_success:
-        await _update_task(
-            task_uuid,
-            status=STATUS_COMPLETED,
-            image_url=MOCK_IMAGE_URL,
+    if not response.is_success:
+        logger.error(
+            "SD API returned error status=%s task_id=%s body=%s",
+            response.status_code,
+            task_id,
+            response.text[:500],
         )
+        await _update_task(task_uuid, status=STATUS_FAILED)
         return
 
-    logger.error(
-        "SD API returned error status=%s task_id=%s body=%s",
-        response.status_code,
-        task_id,
-        response.text[:500],
+    try:
+        body = response.json()
+    except json.JSONDecodeError:
+        logger.exception(
+            "SD API returned non-JSON body for task_id=%s snippet=%s",
+            task_id,
+            response.text[:200],
+        )
+        await _update_task(task_uuid, status=STATUS_FAILED)
+        return
+
+    if not isinstance(body, dict):
+        logger.error("SD API JSON root is not an object task_id=%s", task_id)
+        await _update_task(task_uuid, status=STATUS_FAILED)
+        return
+
+    images = body.get("images")
+    if not isinstance(images, list) or len(images) < 1:
+        logger.error(
+            "SD API missing or empty images[] task_id=%s keys=%s",
+            task_id,
+            list(body.keys()) if isinstance(body, dict) else None,
+        )
+        await _update_task(task_uuid, status=STATUS_FAILED)
+        return
+
+    b64_payload = images[0]
+    if not isinstance(b64_payload, str) or not b64_payload.strip():
+        logger.error("SD API images[0] is not a non-empty string task_id=%s", task_id)
+        await _update_task(task_uuid, status=STATUS_FAILED)
+        return
+
+    try:
+        raw_png = base64.b64decode(b64_payload, validate=False)
+    except binascii.Error:
+        logger.exception("Failed to base64-decode SD image for task_id=%s", task_id)
+        await _update_task(task_uuid, status=STATUS_FAILED)
+        return
+
+    if not raw_png:
+        logger.error("Decoded image is empty task_id=%s", task_id)
+        await _update_task(task_uuid, status=STATUS_FAILED)
+        return
+
+    filename = f"{task_id}.png"
+    out_path = STATIC_IMAGES_DIR / filename
+    public_url = f"/static/images/{filename}"
+
+    try:
+        await asyncio.to_thread(_write_image_file, out_path, raw_png)
+    except OSError:
+        logger.exception("Failed to write image file task_id=%s path=%s", task_id, out_path)
+        await _update_task(task_uuid, status=STATUS_FAILED)
+        return
+
+    await _update_task(
+        task_uuid,
+        status=STATUS_COMPLETED,
+        image_url=public_url,
     )
-    await _update_task(task_uuid, status=STATUS_FAILED)

@@ -17,3 +17,5 @@ anigen.db
 .vscode/
 .cursor/
 .cursorrules
+
+static/images/*.png

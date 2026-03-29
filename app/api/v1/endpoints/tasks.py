@@ -1,7 +1,6 @@
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -25,8 +24,8 @@ router = APIRouter(prefix="/tasks", tags=["tasks"])
     response_model=ApiResponse[ImageTaskListResponseData],
 )
 async def list_tasks(
-    skip: Annotated[int, Query(0, ge=0)] = 0,
-    limit: Annotated[int, Query(50, ge=1, le=100)] = 50,
+    skip: int = 0,
+    limit: int = 50,
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ApiResponse[ImageTaskListResponseData]:

@@ -1,9 +1,7 @@
-import asyncio
 import base64
 import binascii
 import json
 import logging
-from pathlib import Path
 from typing import Any, Optional
 from uuid import UUID
 
@@ -13,6 +11,7 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.storage import get_storage
 from app.db.database import SessionLocal
 from app.models.task import ImageTask
 from app.schemas.image import TaskStatus
@@ -23,20 +22,30 @@ STATUS_PENDING: TaskStatus = "PENDING"
 STATUS_COMPLETED: TaskStatus = "COMPLETED"
 STATUS_FAILED: TaskStatus = "FAILED"
 
-# Project root: app/services/image_service.py -> parents[2] == repo root
-_PROJECT_ROOT = Path(__file__).resolve().parents[2]
-STATIC_IMAGES_DIR = _PROJECT_ROOT / "static" / "images"
-
 SD_REQUEST_TIMEOUT_SECONDS = 60.0
+SD_TXT2IMG_PATH = "/sdapi/v1/txt2img"
 
 
-def _write_image_file(path: Path, data: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)
+def _sd_txt2img_url() -> str:
+    base = str(settings.sd_webui_url).rstrip("/")
+    return f"{base}{SD_TXT2IMG_PATH}"
 
 
-async def create_image_task(session: AsyncSession, task_id: UUID, prompt: str) -> None:
-    """Insert a new task row into the database."""
+async def create_image_task(
+    session: AsyncSession,
+    task_id: UUID,
+    prompt: str,
+    *,
+    user_id: int,
+    width: int,
+    height: int,
+    steps: int,
+) -> None:
+    """Insert a new task row into the database.
+
+    ``width`` / ``height`` / ``steps`` are accepted for API symmetry; the worker
+    receives them via the ARQ job payload (see ``enqueue_job`` at the call site).
+    """
 
     session.add(
         ImageTask(
@@ -44,6 +53,7 @@ async def create_image_task(session: AsyncSession, task_id: UUID, prompt: str) -
             prompt=prompt,
             status=STATUS_PENDING,
             image_url=None,
+            user_id=user_id,
         )
     )
     await session.commit()
@@ -58,14 +68,36 @@ async def get_task_status(session: AsyncSession, task_id: UUID) -> Optional[Task
     return result.scalar_one_or_none()
 
 
+
+async def get_task_status_image_url_for_access_check(
+    session: AsyncSession,
+    task_id: UUID,
+) -> Optional[tuple[TaskStatus, Optional[str], Optional[int]]]:
+    """Return status, image_url, user_id for a task, or None if task does not exist."""
+
+    result = await session.execute(
+        select(ImageTask.status, ImageTask.image_url, ImageTask.user_id).where(
+            ImageTask.id == str(task_id)
+        )
+    )
+    row = result.one_or_none()
+    if row is None:
+        return None
+    return row[0], row[1], row[2]
+
+
 async def get_task_status_and_image_url(
-    session: AsyncSession, task_id: UUID
+    session: AsyncSession,
+    task_id: UUID,
+    *,
+    user_id: int,
 ) -> Optional[tuple[TaskStatus, Optional[str]]]:
     """Fetch status and image_url for task detail responses."""
 
     result = await session.execute(
         select(ImageTask.status, ImageTask.image_url).where(
-            ImageTask.id == str(task_id)
+            ImageTask.id == str(task_id),
+            ImageTask.user_id == user_id,
         )
     )
     row = result.one_or_none()
@@ -90,8 +122,14 @@ async def _update_task(
         await session.commit()
 
 
-async def generate_image_task(ctx: dict[str, Any], task_id: str) -> None:
-    """Call SD WebUI txt2img, persist image under static/images, update DB."""
+async def generate_image_task(
+    ctx: dict[str, Any],
+    task_id: str,
+    width: int = 512,
+    height: int = 512,
+    steps: int = 20,
+) -> None:
+    """Call SD WebUI txt2img, persist bytes via ``get_storage().save_image``, update DB."""
 
     _ = ctx
     task_uuid = UUID(task_id)
@@ -107,13 +145,22 @@ async def generate_image_task(ctx: dict[str, Any], task_id: str) -> None:
         await _update_task(task_uuid, status=STATUS_FAILED)
         return
 
+    txt2img_url = _sd_txt2img_url()
+    payload = {
+        "prompt": prompt,
+        "steps": steps,
+        "width": width,
+        "height": height,
+    }
     try:
         timeout = httpx.Timeout(SD_REQUEST_TIMEOUT_SECONDS)
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.post(
-                settings.sd_api_url,
-                json={"prompt": prompt, "steps": 20},
+            logger.info(
+                "SD WebUI txt2img POST task_id=%s url=%s",
+                task_id,
+                txt2img_url,
             )
+            response = await client.post(txt2img_url, json=payload)
     except (httpx.TimeoutException, httpx.RequestError):
         logger.exception("SD API request failed for task_id=%s", task_id)
         await _update_task(task_uuid, status=STATUS_FAILED)
@@ -173,19 +220,27 @@ async def generate_image_task(ctx: dict[str, Any], task_id: str) -> None:
         await _update_task(task_uuid, status=STATUS_FAILED)
         return
 
-    filename = f"{task_id}.png"
-    out_path = STATIC_IMAGES_DIR / filename
-    public_url = f"/static/images/{filename}"
+    image_bytes = raw_png
+    try:
+        storage = get_storage()
+    except (NotImplementedError, ValueError):
+        logger.exception(
+            "Storage backend unavailable or invalid for task_id=%s (storage_backend=%r)",
+            task_id,
+            settings.storage_backend,
+        )
+        await _update_task(task_uuid, status=STATUS_FAILED)
+        return
 
     try:
-        await asyncio.to_thread(_write_image_file, out_path, raw_png)
+        image_url = await storage.save_image(task_id, image_bytes)
     except OSError:
-        logger.exception("Failed to write image file task_id=%s path=%s", task_id, out_path)
+        logger.exception("Failed to save image for task_id=%s", task_id)
         await _update_task(task_uuid, status=STATUS_FAILED)
         return
 
     await _update_task(
         task_uuid,
         status=STATUS_COMPLETED,
-        image_url=public_url,
+        image_url=image_url,
     )

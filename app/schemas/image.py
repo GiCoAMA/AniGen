@@ -18,11 +18,15 @@ class ImageGenerateRequest(BaseModel):
         max_length=1000,
         description="Text prompt for image generation.",
     )
+    width: int = Field(default=512, ge=256, le=1024)
+    height: int = Field(default=512, ge=256, le=1024)
+    steps: int = Field(default=20, ge=1, le=50)
 
 
 class ImageGenerateResponseData(BaseModel):
     task_id: UUID
     status: TaskStatus
+    user_id: int = Field(description="Owner user id for this task.")
     image_url: Optional[str] = Field(
         default=None,
         description="Relative URL to the generated image under /static/images when completed.",

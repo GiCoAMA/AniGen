@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AniGen — 登录</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
+    <div class="w-full max-w-sm">
+      <div class="rounded-2xl border border-slate-800 bg-slate-900/80 p-8 shadow-xl backdrop-blur">
+        <h1 class="text-xl font-semibold tracking-tight text-center mb-1">AniGen</h1>
+        <p class="text-sm text-slate-400 text-center mb-8">登录以继续使用工作台</p>
+        <form id="login-form" class="space-y-4">
+          <div>
+            <label for="username" class="block text-xs font-medium text-slate-400 mb-1.5">Username</label>
+            <input
+              id="username"
+              name="username"
+              type="text"
+              autocomplete="username"
+              required
+              class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none ring-emerald-500/40 focus:border-emerald-500 focus:ring-2"
+            />
+          </div>
+          <div>
+            <label for="password" class="block text-xs font-medium text-slate-400 mb-1.5">Password</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              required
+              class="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm outline-none ring-emerald-500/40 focus:border-emerald-500 focus:ring-2"
+            />
+          </div>
+          <button
+            type="submit"
+            id="btn-login"
+            class="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-medium text-white hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:opacity-50"
+          >
+            Login
+          </button>
+        </form>
+      </div>
+    </div>
+    <script>
+      (function () {
+        var form = document.getElementById("login-form");
+        var btn = document.getElementById("btn-login");
+
+        form.addEventListener("submit", async function (e) {
+          e.preventDefault();
+          var username = document.getElementById("username").value.trim();
+          var password = document.getElementById("password").value;
+          if (!username) {
+            alert("请输入用户名");
+            return;
+          }
+
+          btn.disabled = true;
+          try {
+            var body = new URLSearchParams();
+            body.set("username", username);
+            body.set("password", password);
+
+            var res = await fetch("/api/v1/login/access-token", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: body.toString(),
+            });
+
+            var data = null;
+            try {
+              data = await res.json();
+            } catch (_) {
+              data = null;
+            }
+
+            if (!res.ok) {
+              var msg =
+                (data && (data.detail || data.msg)) ||
+                ("登录失败 (" + res.status + ")");
+              if (typeof data.detail === "object" && data.detail !== null) {
+                msg = JSON.stringify(data.detail);
+              }
+              alert(String(msg));
+              return;
+            }
+
+            if (data && data.access_token) {
+              localStorage.setItem("anigen_token", data.access_token);
+              window.location.href = "/";
+            } else {
+              alert("响应中缺少 access_token");
+            }
+          } catch (err) {
+            alert(err && err.message ? err.message : "网络错误");
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

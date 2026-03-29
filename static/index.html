@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AniGen — Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
+    <script>
+      (function () {
+        if (!localStorage.getItem("anigen_token")) {
+          window.location.replace("/login");
+        }
+      })();
+    </script>
+
+    <div class="flex min-h-screen flex-col">
+      <header class="sticky top-0 z-10 border-b border-slate-800 bg-slate-900/90 px-4 py-3 backdrop-blur sm:px-6">
+        <div class="mx-auto flex max-w-7xl items-center justify-between">
+          <h1 class="text-base font-semibold tracking-tight text-white sm:text-lg">AniGen Dashboard</h1>
+          <button type="button" id="btn-logout"
+            class="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 hover:text-white">
+            Logout
+          </button>
+        </div>
+      </header>
+
+      <main class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-4 sm:flex-row sm:gap-6 sm:p-6">
+        <aside class="w-full shrink-0 space-y-5 sm:max-w-sm sm:border-r sm:border-slate-800 sm:pr-6">
+          <div>
+            <label for="prompt" class="mb-1.5 block text-xs font-medium text-slate-400">Prompt</label>
+            <textarea id="prompt" rows="6" placeholder="Describe the image you want…"
+              class="w-full resize-y rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring-2"></textarea>
+          </div>
+          <div>
+            <div class="mb-1.5 flex items-center justify-between">
+              <label for="width" class="text-xs font-medium text-slate-400">Width</label>
+              <span id="width-val" class="text-xs tabular-nums text-emerald-400">512</span>
+            </div>
+            <input type="range" id="width" min="256" max="1024" step="64" value="512"
+              class="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-800 accent-emerald-500" />
+            <input type="number" id="width-num" min="256" max="1024" step="64" value="512"
+              class="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm tabular-nums outline-none focus:border-emerald-500" />
+          </div>
+          <div>
+            <div class="mb-1.5 flex items-center justify-between">
+              <label for="height" class="text-xs font-medium text-slate-400">Height</label>
+              <span id="height-val" class="text-xs tabular-nums text-emerald-400">512</span>
+            </div>
+            <input type="range" id="height" min="256" max="1024" step="64" value="512"
+              class="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-800 accent-emerald-500" />
+            <input type="number" id="height-num" min="256" max="1024" step="64" value="512"
+              class="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm tabular-nums outline-none focus:border-emerald-500" />
+          </div>
+          <div>
+            <div class="mb-1.5 flex items-center justify-between">
+              <label for="steps" class="text-xs font-medium text-slate-400">Steps</label>
+              <span id="steps-val" class="text-xs tabular-nums text-emerald-400">20</span>
+            </div>
+            <input type="range" id="steps" min="1" max="50" step="1" value="20"
+              class="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-800 accent-emerald-500" />
+          </div>
+          <button type="button" id="btn-generate"
+            class="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:cursor-not-allowed disabled:opacity-50">
+            Generate Image
+          </button>
+        </aside>
+        <section class="flex min-h-[280px] flex-1 flex-col rounded-xl border border-slate-800 bg-slate-900/50 p-4 sm:min-h-[480px]">
+          <h2 class="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">Output</h2>
+          <div id="preview"
+            class="flex flex-1 items-center justify-center rounded-lg border border-dashed border-slate-700 bg-slate-950/60 p-4 text-center text-sm text-slate-500">
+            Generated image will appear here.
+          </div>
+        </section>
+      </main>
+    </div>
+    <script>
+(function () {
+  var TOKEN_KEY = "anigen_token";
+  function getToken() { return localStorage.getItem(TOKEN_KEY); }
+  function authHeaders() {
+    var t = getToken();
+    var h = { "Content-Type": "application/json" };
+    if (t) h["Authorization"] = "Bearer " + t;
+    return h;
+  }
+  function redirectLogin() {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.replace("/login");
+  }
+  function snapDimension(n) {
+    n = Math.round(Number(n));
+    if (isNaN(n)) return 512;
+    n = Math.min(1024, Math.max(256, n));
+    return Math.round((n - 256) / 64) * 64 + 256;
+  }
+  document.getElementById("btn-logout").addEventListener("click", function () {
+    localStorage.removeItem(TOKEN_KEY);
+    window.location.href = "/login";
+  });
+  function bindDim(rangeId, numId, valId) {
+    var r = document.getElementById(rangeId);
+    var n = document.getElementById(numId);
+    var v = document.getElementById(valId);
+    function show(x) { v.textContent = String(x); }
+    r.addEventListener("input", function () {
+      var x = snapDimension(r.value);
+      r.value = String(x);
+      n.value = String(x);
+      show(x);
+    });
+    n.addEventListener("change", function () {
+      var x = snapDimension(n.value);
+      r.value = String(x);
+      n.value = String(x);
+      show(x);
+    });
+    show(snapDimension(r.value));
+  }
+  bindDim("width", "width-num", "width-val");
+  bindDim("height", "height-num", "height-val");
+  var stepsEl = document.getElementById("steps");
+  var stepsVal = document.getElementById("steps-val");
+  stepsEl.addEventListener("input", function () { stepsVal.textContent = stepsEl.value; });
+  stepsVal.textContent = stepsEl.value;
+  var preview = document.getElementById("preview");
+  var btnGen = document.getElementById("btn-generate");
+  var taskWs = null;
+  var taskStreamFinished = false;
+
+  function closeTaskWebSocket() {
+    if (taskWs) {
+      try {
+        taskWs.onopen = null;
+        taskWs.onmessage = null;
+        taskWs.onerror = null;
+        taskWs.onclose = null;
+        taskWs.close();
+      } catch (e) {}
+      taskWs = null;
+    }
+  }
+
+  function setPreviewIdle() {
+    preview.className =
+      "flex flex-1 items-center justify-center rounded-lg border border-dashed border-slate-700 bg-slate-950/60 p-4 text-center text-sm text-slate-500";
+    preview.innerHTML = "Generated image will appear here.";
+  }
+  function setPreviewLoading() {
+    closeTaskWebSocket();
+    preview.className =
+      "flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-slate-700 bg-slate-950/60 p-8 text-center";
+    preview.innerHTML =
+      '<div class="h-10 w-10 animate-spin rounded-full border-2 border-slate-600 border-t-emerald-500"></div>' +
+      '<p class="text-sm text-slate-300">Generating…</p>';
+  }
+  function setPreviewImage(url) {
+    closeTaskWebSocket();
+    if (typeof url !== "string" || url.indexOf("/") !== 0) {
+      setPreviewError("无效的图片地址");
+      return;
+    }
+    preview.className =
+      "flex flex-1 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-slate-950 p-2";
+    preview.innerHTML =
+      '<img src="' + url.replace(/"/g, "&quot;").replace(/</g, "&lt;") +
+      '" alt="Generated" class="max-h-[min(70vh,640px)] w-auto max-w-full rounded-md object-contain shadow-lg" />';
+  }
+  function setPreviewError(msg) {
+    closeTaskWebSocket();
+    preview.className =
+      "flex flex-1 items-center justify-center rounded-lg border border-red-900/50 bg-red-950/30 p-4 text-center text-sm text-red-300";
+    preview.textContent = msg || "Something went wrong.";
+  }
+
+  function connectTaskWebSocket(taskId, token) {
+    taskStreamFinished = false;
+    closeTaskWebSocket();
+    var disconnectHandled = false;
+    function notifyDisconnect() {
+      if (disconnectHandled || taskStreamFinished) return;
+      disconnectHandled = true;
+      btnGen.disabled = false;
+      setPreviewError("实时连接已断开，请重试或刷新页面。");
+    }
+
+    var wsProtocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    var wsUrl =
+      wsProtocol +
+      "//" +
+      window.location.host +
+      "/api/v1/ws/tasks/" +
+      encodeURIComponent(taskId) +
+      "?token=" +
+      encodeURIComponent(token);
+    var ws = new WebSocket(wsUrl);
+    taskWs = ws;
+
+    ws.onmessage = function (event) {
+      var msg;
+      try {
+        msg = JSON.parse(event.data);
+      } catch (e) {
+        return;
+      }
+      var st = msg.status;
+      if (st === "COMPLETED") {
+        taskStreamFinished = true;
+        btnGen.disabled = false;
+        closeTaskWebSocket();
+        if (msg.image_url) {
+          setPreviewImage(msg.image_url);
+        } else {
+          setPreviewError("已完成但未返回图片地址");
+        }
+        return;
+      }
+      if (st === "FAILED") {
+        taskStreamFinished = true;
+        btnGen.disabled = false;
+        closeTaskWebSocket();
+        alert("图片生成失败");
+        setPreviewError("生成失败，请调整参数后重试。");
+        return;
+      }
+    };
+
+    ws.onerror = function () {
+      notifyDisconnect();
+    };
+
+    ws.onclose = function () {
+      if (taskWs === ws) {
+        taskWs = null;
+      }
+      notifyDisconnect();
+    };
+  }
+
+  btnGen.addEventListener("click", async function () {
+    var prompt = document.getElementById("prompt").value.trim();
+    if (!prompt) { alert("请输入 Prompt"); return; }
+    var width = snapDimension(document.getElementById("width").value);
+    var height = snapDimension(document.getElementById("height").value);
+    var steps = Math.min(50, Math.max(1, parseInt(document.getElementById("steps").value, 10) || 20));
+    var token = getToken();
+    if (!token) { redirectLogin(); return; }
+    closeTaskWebSocket();
+    btnGen.disabled = true;
+    try {
+      var res = await fetch("/api/v1/generate", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ prompt: prompt, width: width, height: height, steps: steps }),
+      });
+      if (res.status === 401) { redirectLogin(); return; }
+      if (res.status === 429) {
+        btnGen.disabled = false;
+        alert("请求过于频繁，请稍后再试");
+        return;
+      }
+      var body = null;
+      try { body = await res.json(); } catch (e) { body = null; }
+      if (!res.ok) {
+        btnGen.disabled = false;
+        var msg = (body && (body.detail || body.msg)) || "生成请求失败 (" + res.status + ")";
+        if (typeof body.detail === "object" && body.detail !== null) msg = JSON.stringify(body.detail);
+        alert(String(msg));
+        return;
+      }
+      var data = body && body.data;
+      if (!data || !data.task_id) {
+        btnGen.disabled = false;
+        alert("响应中缺少 task_id");
+        return;
+      }
+      var taskId = data.task_id;
+      setPreviewLoading();
+      connectTaskWebSocket(taskId, token);
+    } catch (err) {
+      btnGen.disabled = false;
+      alert(err && err.message ? err.message : "网络错误");
+      setPreviewIdle();
+    }
+  });
+})();
+    </script>
+  </body>
+</html>

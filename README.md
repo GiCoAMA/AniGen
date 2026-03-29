@@ -17,6 +17,13 @@
 - **AI Integration**: httpx (Stable Diffusion WebUI API)
 - **DevOps**: Docker, Docker Compose
 
+## Docker Compose 与宿主机网络
+
+- `api` 与 `worker` 使用 **`network_mode: host`**，与宿主机共享网络栈（便于访问 Tailscale / 本机 SD WebUI 等）。此时 **不再使用 `ports` 映射**，API 直接监听宿主机 **`0.0.0.0:8000`**。
+- 部署前请确认 **8000** 未被其它进程占用。
+- `redis` 仍在默认 bridge 网络，通过 **`6379:6379`** 发布到宿主机；`api` / `worker` 通过 **`REDIS_HOST=127.0.0.1`** 连接。若宿主机已有服务占用 **6379**，需调整映射端口并同步设置 **`REDIS_PORT`**（及环境变量）。
+- 可通过环境变量 **`SD_WEBUI_URL`** 指向 Stable Diffusion（例如 Tailscale IP 或 `http://127.0.0.1:7860`），无需 `host.docker.internal`。
+
 ## 🚀 极速启动 (Quick Start)
 
 本项目已完全容器化，环境零依赖。只需确保宿主机安装有 Docker 环境：

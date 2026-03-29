@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Generic, Literal, Optional, TypeVar
 from uuid import UUID
 
@@ -30,6 +31,24 @@ class ImageGenerateResponseData(BaseModel):
     image_url: Optional[str] = Field(
         default=None,
         description="Relative URL to the generated image under /static/images when completed.",
+    )
+
+
+class ImageTaskListItem(BaseModel):
+    id: UUID = Field(description="Task identifier (UUID).")
+    prompt: str = Field(description="Original prompt for this task.")
+    status: TaskStatus = Field(description="Current status of the task.")
+    image_url: Optional[str] = Field(
+        default=None,
+        description="Relative URL to the generated image under /static/images when completed.",
+    )
+    created_at: datetime = Field(description="Creation time of the task.")
+
+
+class ImageTaskListResponseData(BaseModel):
+    items: list[ImageTaskListItem] = Field(
+        default_factory=list,
+        description="Tasks for the current user ordered by creation time (desc).",
     )
 
 

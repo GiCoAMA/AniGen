@@ -12,6 +12,7 @@ from arq.connections import RedisSettings
 
 from app.api.v1.endpoints.auth import login_router, router as auth_router
 from app.api.v1.endpoints.images import router as images_router
+from app.api.v1.endpoints.tasks import router as tasks_router
 from app.api.v1.endpoints.ws import ws_router
 from app.core.config import settings
 from app.db.database import SessionLocal
@@ -53,6 +54,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(login_router, prefix="/api/v1")
 app.include_router(images_router, prefix="/api/v1")
+app.include_router(tasks_router, prefix="/api/v1")
 app.include_router(ws_router, prefix="/api/v1/ws")
 
 

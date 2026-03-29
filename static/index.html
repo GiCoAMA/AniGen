@@ -72,24 +72,39 @@
       <aside
         class="flex w-96 shrink-0 flex-col border-r border-white/10 bg-white/5 backdrop-blur-md bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgb(16_185_129_/_0.06),transparent)]"
       >
-        <div class="flex items-center justify-between gap-3 border-b border-white/10 px-6 py-5">
-          <div class="flex items-center gap-3 min-w-0">
-            <div
-              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg shadow-emerald-900/40 ring-1 ring-white/10"
+        <div class="border-b border-white/10 px-6 py-5">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div
+                class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg shadow-emerald-900/40 ring-1 ring-white/10"
+              >
+                <span class="text-lg font-bold tracking-tight text-zinc-950">A</span>
+              </div>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-semibold tracking-tight text-white">AniGen</p>
+                <p class="truncate text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-500">Studio</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              id="btn-logout"
+              class="shrink-0 rounded-lg border border-zinc-700/90 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
             >
-              <span class="text-lg font-bold tracking-tight text-zinc-950">A</span>
-            </div>
-            <div class="min-w-0">
-              <p class="truncate text-sm font-semibold tracking-tight text-white">AniGen</p>
-              <p class="truncate text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-500">Studio</p>
-            </div>
+              Logout
+            </button>
           </div>
           <button
             type="button"
-            id="btn-logout"
-            class="shrink-0 rounded-lg border border-zinc-700/90 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
+            id="btn-gallery"
+            class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-medium text-zinc-400 transition hover:border-emerald-500/30 hover:bg-emerald-500/10 hover:text-zinc-200"
           >
-            Logout
+            <svg class="h-3.5 w-3.5 text-emerald-500/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+            My Gallery
           </button>
         </div>
 
@@ -208,6 +223,59 @@
       </main>
     </div>
 
+    <!-- Gallery modal -->
+    <div
+      id="gallery-modal"
+      class="fixed inset-0 z-50 hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="gallery-title"
+      aria-hidden="true"
+    >
+      <button
+        type="button"
+        id="gallery-backdrop"
+        class="absolute inset-0 cursor-default border-0 bg-black/80 p-0 backdrop-blur-md"
+        aria-label="Close gallery"
+      ></button>
+      <div
+        id="gallery-shell"
+        class="relative z-10 mx-auto flex min-h-full max-h-screen flex-col p-4 sm:p-8"
+      >
+        <div
+          id="gallery-panel"
+          class="flex max-h-[min(92vh,920px)] flex-1 flex-col overflow-hidden rounded-2xl border border-white/10 bg-zinc-950/55 shadow-2xl shadow-black/50 backdrop-blur-xl"
+        >
+          <div class="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-6 sm:py-4">
+            <h2 id="gallery-title" class="text-sm font-semibold tracking-tight text-white sm:text-base">My Gallery</h2>
+            <button
+              type="button"
+              id="gallery-close"
+              class="rounded-lg border border-white/10 bg-white/5 p-2 text-zinc-400 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+              aria-label="Close"
+            >
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div class="relative flex-1 overflow-hidden">
+            <div
+              id="gallery-loading"
+              class="absolute inset-0 z-10 hidden flex-col items-center justify-center gap-3 bg-zinc-950/60"
+            >
+              <div class="h-10 w-10 animate-spin rounded-full border-2 border-zinc-600 border-t-emerald-400"></div>
+              <p class="text-xs font-medium text-zinc-500">Loading your work…</p>
+            </div>
+            <div
+              id="gallery-grid"
+              class="grid h-full max-h-[min(85vh,800px)] grid-cols-2 gap-4 overflow-y-auto p-6 md:grid-cols-3 md:p-8 lg:grid-cols-4"
+            ></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script>
 (function () {
   var TOKEN_KEY = "anigen_token";
@@ -215,6 +283,12 @@
   function authHeaders() {
     var t = getToken();
     var h = { "Content-Type": "application/json" };
+    if (t) h["Authorization"] = "Bearer " + t;
+    return h;
+  }
+  function authHeadersGet() {
+    var t = getToken();
+    var h = {};
     if (t) h["Authorization"] = "Bearer " + t;
     return h;
   }
@@ -486,6 +560,124 @@
       setPreviewIdle();
     }
   });
+
+  var galleryModal = document.getElementById("gallery-modal");
+  var galleryBackdrop = document.getElementById("gallery-backdrop");
+  var galleryClose = document.getElementById("gallery-close");
+  var galleryGrid = document.getElementById("gallery-grid");
+  var galleryLoading = document.getElementById("gallery-loading");
+  var btnGallery = document.getElementById("btn-gallery");
+
+  function escapeHtml(s) {
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+  function truncatePrompt(s, maxLen) {
+    s = String(s || "");
+    if (s.length <= maxLen) return s;
+    return s.slice(0, maxLen) + "…";
+  }
+  function closeGallery() {
+    if (!galleryModal) return;
+    galleryModal.classList.add("hidden");
+    galleryModal.setAttribute("aria-hidden", "true");
+  }
+  async function openGallery() {
+    if (!galleryModal || !galleryGrid || !galleryLoading) return;
+    var token = getToken();
+    if (!token) { redirectLogin(); return; }
+    galleryModal.classList.remove("hidden");
+    galleryModal.setAttribute("aria-hidden", "false");
+    galleryGrid.innerHTML = "";
+    galleryLoading.classList.remove("hidden");
+    galleryLoading.classList.add("flex");
+    try {
+      var res = await fetch("/api/v1/tasks?limit=100", { headers: authHeadersGet() });
+      if (res.status === 401) {
+        closeGallery();
+        redirectLogin();
+        return;
+      }
+      var body = null;
+      try { body = await res.json(); } catch (e) { body = null; }
+      if (!res.ok) {
+        var errMsg = (body && (body.detail || body.msg)) || "加载画廊失败 (" + res.status + ")";
+        galleryGrid.innerHTML = '<p class="col-span-full text-center text-sm text-red-300/90">' + escapeHtml(String(errMsg)) + "</p>";
+        return;
+      }
+      var data = body && body.data;
+      var items = (data && data.items) || [];
+      var completed = items.filter(function (t) {
+        return t && t.status === "COMPLETED" && t.image_url;
+      });
+      if (completed.length === 0) {
+        galleryGrid.innerHTML =
+          '<p class="col-span-full py-12 text-center text-sm text-zinc-500">No completed images yet. Generate something first.</p>';
+        return;
+      }
+      var html = "";
+      for (var gi = 0; gi < completed.length; gi++) {
+        var task = completed[gi];
+        var url = task.image_url;
+        if (typeof url !== "string" || url.indexOf("/") !== 0) continue;
+        var safeUrl = url.replace(/"/g, "&quot;").replace(/</g, "&lt;");
+        var shortPrompt = truncatePrompt(task.prompt, 120);
+        html +=
+          '<article class="group relative overflow-hidden rounded-xl border border-zinc-800/80 bg-zinc-900/50 shadow-lg">' +
+          '<div class="aspect-square w-full overflow-hidden">' +
+          '<img src="' + safeUrl + '" alt="" class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" loading="lazy" />' +
+          "</div>" +
+          '<div class="pointer-events-none absolute inset-0 flex items-end bg-black/0 p-3 opacity-0 transition duration-300 group-hover:bg-black/65 group-hover:opacity-100">' +
+          '<p class="max-h-[4.5rem] w-full overflow-hidden text-[11px] leading-snug text-zinc-100">' +
+          escapeHtml(shortPrompt) +
+          "</p>" +
+          "</div>" +
+          "</article>";
+      }
+      galleryGrid.innerHTML =
+        html || '<p class="col-span-full text-center text-sm text-zinc-500">No gallery items to show.</p>';
+    } catch (err) {
+      galleryGrid.innerHTML =
+        '<p class="col-span-full text-center text-sm text-red-300/90">' +
+        escapeHtml(err && err.message ? err.message : "网络错误") +
+        "</p>";
+    } finally {
+      galleryLoading.classList.remove("flex");
+      galleryLoading.classList.add("hidden");
+    }
+  }
+
+  if (btnGallery) {
+    btnGallery.addEventListener("click", function () {
+      openGallery();
+    });
+  }
+  if (galleryClose) {
+    galleryClose.addEventListener("click", function (e) {
+      e.stopPropagation();
+      closeGallery();
+    });
+  }
+  if (galleryBackdrop) {
+    galleryBackdrop.addEventListener("click", function () {
+      closeGallery();
+    });
+  }
+  var galleryShell = document.getElementById("gallery-shell");
+  if (galleryShell) {
+    galleryShell.addEventListener("click", function (e) {
+      if (e.target === galleryShell) closeGallery();
+    });
+  }
+  var galleryPanel = document.getElementById("gallery-panel");
+  if (galleryPanel) {
+    galleryPanel.addEventListener("click", function (e) {
+      e.stopPropagation();
+    });
+  }
 })();
     </script>
   </body>

@@ -3,10 +3,62 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AniGen — Dashboard</title>
+    <title>AniGen — Create</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      .range-steps {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 6px;
+        background: transparent;
+      }
+      .range-steps::-webkit-slider-runnable-track {
+        height: 4px;
+        border-radius: 9999px;
+        background: rgb(39 39 42);
+        box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.35);
+      }
+      .range-steps::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px;
+        height: 18px;
+        margin-top: -7px;
+        border-radius: 9999px;
+        background: linear-gradient(145deg, rgb(52 211 153), rgb(45 212 191));
+        border: 2px solid rgb(6 78 59);
+        box-shadow:
+          0 0 0 1px rgb(16 185 129 / 0.5),
+          0 2px 8px rgb(16 185 129 / 0.35);
+        cursor: pointer;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+      .range-steps::-webkit-slider-thumb:hover {
+        transform: scale(1.08);
+        box-shadow:
+          0 0 0 1px rgb(52 211 153 / 0.6),
+          0 4px 14px rgb(16 185 129 / 0.45);
+      }
+      .range-steps::-moz-range-track {
+        height: 4px;
+        border-radius: 9999px;
+        background: rgb(39 39 42);
+        box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.35);
+      }
+      .range-steps::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        background: linear-gradient(145deg, rgb(52 211 153), rgb(45 212 191));
+        border: 2px solid rgb(6 78 59);
+        box-shadow:
+          0 0 0 1px rgb(16 185 129 / 0.5),
+          0 2px 8px rgb(16 185 129 / 0.35);
+        cursor: pointer;
+      }
+    </style>
   </head>
-  <body class="min-h-screen bg-slate-950 text-slate-100 antialiased">
+  <body class="min-h-screen bg-zinc-950 text-zinc-100 antialiased selection:bg-emerald-500/30">
     <script>
       (function () {
         if (!localStorage.getItem("anigen_token")) {
@@ -15,66 +67,147 @@
       })();
     </script>
 
-    <div class="flex min-h-screen flex-col">
-      <header class="sticky top-0 z-10 border-b border-slate-800 bg-slate-900/90 px-4 py-3 backdrop-blur sm:px-6">
-        <div class="mx-auto flex max-w-7xl items-center justify-between">
-          <h1 class="text-base font-semibold tracking-tight text-white sm:text-lg">AniGen Dashboard</h1>
-          <button type="button" id="btn-logout"
-            class="rounded-lg border border-slate-600 px-3 py-1.5 text-sm text-slate-300 transition hover:border-slate-500 hover:bg-slate-800 hover:text-white">
+    <div class="flex min-h-screen">
+      <!-- Sidebar -->
+      <aside
+        class="flex w-96 shrink-0 flex-col border-r border-white/10 bg-white/5 backdrop-blur-md bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgb(16_185_129_/_0.06),transparent)]"
+      >
+        <div class="flex items-center justify-between gap-3 border-b border-white/10 px-6 py-5">
+          <div class="flex items-center gap-3 min-w-0">
+            <div
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 shadow-lg shadow-emerald-900/40 ring-1 ring-white/10"
+            >
+              <span class="text-lg font-bold tracking-tight text-zinc-950">A</span>
+            </div>
+            <div class="min-w-0">
+              <p class="truncate text-sm font-semibold tracking-tight text-white">AniGen</p>
+              <p class="truncate text-[11px] font-medium uppercase tracking-[0.2em] text-zinc-500">Studio</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            id="btn-logout"
+            class="shrink-0 rounded-lg border border-zinc-700/90 bg-zinc-900/50 px-3 py-1.5 text-xs font-medium text-zinc-400 transition hover:border-zinc-600 hover:bg-zinc-800 hover:text-zinc-200"
+          >
             Logout
           </button>
         </div>
-      </header>
 
-      <main class="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-4 p-4 sm:flex-row sm:gap-6 sm:p-6">
-        <aside class="w-full shrink-0 space-y-5 sm:max-w-sm sm:border-r sm:border-slate-800 sm:pr-6">
-          <div>
-            <label for="prompt" class="mb-1.5 block text-xs font-medium text-slate-400">Prompt</label>
-            <textarea id="prompt" rows="6" placeholder="Describe the image you want…"
-              class="w-full resize-y rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none ring-emerald-500/30 focus:border-emerald-500 focus:ring-2"></textarea>
+        <div class="flex flex-1 flex-col overflow-y-auto px-6 py-6">
+          <div class="space-y-2">
+            <label for="prompt" class="text-xs font-medium text-zinc-400">Prompt</label>
+            <textarea
+              id="prompt"
+              rows="7"
+              placeholder="Describe your scene, style, lighting, and mood…"
+              class="w-full resize-y rounded-2xl border border-zinc-800/90 bg-zinc-900/70 px-4 py-3.5 text-sm leading-relaxed text-zinc-100 shadow-inner shadow-black/40 placeholder:text-zinc-600 outline-none ring-1 ring-inset ring-zinc-800/50 transition focus:border-emerald-500/40 focus:ring-emerald-500/25"
+            ></textarea>
+            <p class="mt-2 text-[10px] leading-relaxed text-zinc-600">
+              e.g., A cinematic shot of a cyberpunk city, neon lights, 8k resolution, unreal engine 5
+            </p>
           </div>
-          <div>
-            <div class="mb-1.5 flex items-center justify-between">
-              <label for="width" class="text-xs font-medium text-slate-400">Width</label>
-              <span id="width-val" class="text-xs tabular-nums text-emerald-400">512</span>
+
+          <!-- Kept for request payload & bindDim; not shown (width/height driven by aspect ratio) -->
+          <div class="hidden" aria-hidden="true">
+            <span id="width-val">512</span>
+            <input type="range" id="width" min="256" max="1024" step="64" value="512" />
+            <input type="number" id="width-num" min="256" max="1024" step="64" value="512" />
+            <span id="height-val">512</span>
+            <input type="range" id="height" min="256" max="1024" step="64" value="512" />
+            <input type="number" id="height-num" min="256" max="1024" step="64" value="512" />
+          </div>
+
+          <div class="mt-6 space-y-5">
+            <div>
+              <p class="mb-2 text-xs font-medium text-zinc-500">长宽比</p>
+              <p id="dim-readout" class="mb-2 text-[10px] tabular-nums text-zinc-600">512 × 512 px</p>
+              <div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Aspect ratio">
+                <button
+                  type="button"
+                  class="aspect-pill rounded-full border px-3 py-1.5 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                  data-aspect="1-1"
+                  data-w="512"
+                  data-h="512"
+                  role="radio"
+                  aria-checked="true"
+                >
+                  <span class="block font-medium">1:1</span>
+                  <span class="block text-[10px] font-normal opacity-70">正方形</span>
+                </button>
+                <button
+                  type="button"
+                  class="aspect-pill rounded-full border px-3 py-1.5 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                  data-aspect="4-3"
+                  data-w="768"
+                  data-h="576"
+                  role="radio"
+                  aria-checked="false"
+                >
+                  <span class="block font-medium">4:3</span>
+                  <span class="block text-[10px] font-normal opacity-70">摄影</span>
+                </button>
+                <button
+                  type="button"
+                  class="aspect-pill rounded-full border px-3 py-1.5 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                  data-aspect="16-9"
+                  data-w="896"
+                  data-h="512"
+                  role="radio"
+                  aria-checked="false"
+                >
+                  <span class="block font-medium">16:9</span>
+                  <span class="block text-[10px] font-normal opacity-70">壁纸</span>
+                </button>
+                <button
+                  type="button"
+                  class="aspect-pill rounded-full border px-3 py-1.5 text-left text-xs font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+                  data-aspect="9-16"
+                  data-w="512"
+                  data-h="896"
+                  role="radio"
+                  aria-checked="false"
+                >
+                  <span class="block font-medium">9:16</span>
+                  <span class="block text-[10px] font-normal opacity-70">竖屏</span>
+                </button>
+              </div>
             </div>
-            <input type="range" id="width" min="256" max="1024" step="64" value="512"
-              class="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-800 accent-emerald-500" />
-            <input type="number" id="width-num" min="256" max="1024" step="64" value="512"
-              class="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm tabular-nums outline-none focus:border-emerald-500" />
-          </div>
-          <div>
-            <div class="mb-1.5 flex items-center justify-between">
-              <label for="height" class="text-xs font-medium text-slate-400">Height</label>
-              <span id="height-val" class="text-xs tabular-nums text-emerald-400">512</span>
+            <div>
+              <div class="mb-2 flex items-center justify-between">
+                <label for="steps" class="text-xs font-medium text-zinc-500">Steps</label>
+                <span id="steps-val" class="text-xs tabular-nums font-medium text-emerald-400/90">20</span>
+              </div>
+              <input type="range" id="steps" class="range-steps" min="1" max="50" step="1" value="20" />
             </div>
-            <input type="range" id="height" min="256" max="1024" step="64" value="512"
-              class="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-800 accent-emerald-500" />
-            <input type="number" id="height-num" min="256" max="1024" step="64" value="512"
-              class="mt-2 w-full rounded-lg border border-slate-700 bg-slate-900 px-2 py-1.5 text-sm tabular-nums outline-none focus:border-emerald-500" />
           </div>
-          <div>
-            <div class="mb-1.5 flex items-center justify-between">
-              <label for="steps" class="text-xs font-medium text-slate-400">Steps</label>
-              <span id="steps-val" class="text-xs tabular-nums text-emerald-400">20</span>
-            </div>
-            <input type="range" id="steps" min="1" max="50" step="1" value="20"
-              class="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-800 accent-emerald-500" />
-          </div>
-          <button type="button" id="btn-generate"
-            class="w-full rounded-lg bg-emerald-600 py-2.5 text-sm font-medium text-white shadow-lg shadow-emerald-900/30 transition hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-400 disabled:cursor-not-allowed disabled:opacity-50">
-            Generate Image
+        </div>
+
+        <div class="border-t border-white/10 bg-black/20 p-6 backdrop-blur-md">
+          <button
+            type="button"
+            id="btn-generate"
+            class="w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-400 py-3.5 text-sm font-semibold text-zinc-950 shadow-lg shadow-emerald-900/35 transition hover:scale-[1.02] hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:scale-100 disabled:hover:brightness-100"
+          >
+            Generate
           </button>
-        </aside>
-        <section class="flex min-h-[280px] flex-1 flex-col rounded-xl border border-slate-800 bg-slate-900/50 p-4 sm:min-h-[480px]">
-          <h2 class="mb-3 text-xs font-medium uppercase tracking-wider text-slate-500">Output</h2>
-          <div id="preview"
-            class="flex flex-1 items-center justify-center rounded-lg border border-dashed border-slate-700 bg-slate-950/60 p-4 text-center text-sm text-slate-500">
-            Generated image will appear here.
+        </div>
+      </aside>
+
+      <!-- Main canvas -->
+      <main class="flex min-h-screen min-w-0 flex-1 flex-col bg-zinc-900">
+        <div
+          class="flex flex-1 items-center justify-center border-l border-zinc-800/50 p-6 sm:p-10"
+        >
+          <div
+            id="preview"
+            class="flex min-h-[min(70vh,720px)] w-full max-w-5xl flex-1 items-center justify-center rounded-2xl border border-dashed border-zinc-700/70 bg-zinc-950/35 p-8 text-center text-sm text-zinc-500 shadow-inner shadow-black/20"
+          >
+            Your creation will appear here.
           </div>
-        </section>
+        </div>
       </main>
     </div>
+
     <script>
 (function () {
   var TOKEN_KEY = "anigen_token";
@@ -120,6 +253,46 @@
   }
   bindDim("width", "width-num", "width-val");
   bindDim("height", "height-num", "height-val");
+
+  var dimReadout = document.getElementById("dim-readout");
+  function applyDimensions(rawW, rawH) {
+    var w = snapDimension(rawW);
+    var h = snapDimension(rawH);
+    document.getElementById("width").value = String(w);
+    document.getElementById("height").value = String(h);
+    document.getElementById("width-num").value = String(w);
+    document.getElementById("height-num").value = String(h);
+    document.getElementById("width-val").textContent = String(w);
+    document.getElementById("height-val").textContent = String(h);
+    if (dimReadout) dimReadout.textContent = w + " × " + h + " px";
+  }
+  var pillInactive =
+    "aspect-pill rounded-full border border-zinc-700/90 bg-zinc-900/40 px-3 py-1.5 text-left text-xs font-medium text-zinc-400 transition hover:border-zinc-600 hover:bg-zinc-900/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950";
+  var pillActive =
+    "aspect-pill rounded-full border border-emerald-500/70 bg-emerald-500/15 px-3 py-1.5 text-left text-xs font-medium text-zinc-100 shadow-[0_0_20px_-5px_rgba(16,185,129,0.35)] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950";
+  function setActivePill(activeBtn) {
+    var pills = document.querySelectorAll(".aspect-pill");
+    for (var i = 0; i < pills.length; i++) {
+      pills[i].className = pillInactive;
+      pills[i].setAttribute("aria-checked", "false");
+    }
+    activeBtn.className = pillActive;
+    activeBtn.setAttribute("aria-checked", "true");
+  }
+  var aspectPills = document.querySelectorAll(".aspect-pill");
+  for (var pi = 0; pi < aspectPills.length; pi++) {
+    aspectPills[pi].addEventListener("click", function (ev) {
+      var btn = ev.currentTarget;
+      applyDimensions(btn.getAttribute("data-w"), btn.getAttribute("data-h"));
+      setActivePill(btn);
+    });
+  }
+  var defaultPill = document.querySelector('.aspect-pill[data-aspect="1-1"]');
+  if (defaultPill) {
+    applyDimensions(defaultPill.getAttribute("data-w"), defaultPill.getAttribute("data-h"));
+    setActivePill(defaultPill);
+  }
+
   var stepsEl = document.getElementById("steps");
   var stepsVal = document.getElementById("steps-val");
   stepsEl.addEventListener("input", function () { stepsVal.textContent = stepsEl.value; });
@@ -142,18 +315,41 @@
     }
   }
 
+  var previewBaseClass =
+    "flex min-h-[min(70vh,720px)] w-full max-w-5xl flex-1 items-center justify-center rounded-2xl border p-8 text-center text-sm shadow-inner shadow-black/20";
+
   function setPreviewIdle() {
     preview.className =
-      "flex flex-1 items-center justify-center rounded-lg border border-dashed border-slate-700 bg-slate-950/60 p-4 text-center text-sm text-slate-500";
-    preview.innerHTML = "Generated image will appear here.";
+      previewBaseClass +
+      " border-dashed border-zinc-700/70 bg-zinc-950/35 text-zinc-500";
+    preview.innerHTML = "Your creation will appear here.";
   }
   function setPreviewLoading() {
-    closeTaskWebSocket();
     preview.className =
-      "flex flex-1 flex-col items-center justify-center gap-3 rounded-lg border border-slate-700 bg-slate-950/60 p-8 text-center";
+      previewBaseClass +
+      " relative flex-col justify-center gap-0 overflow-hidden border-zinc-600/50 bg-zinc-950/55 text-zinc-400 ring-1 ring-emerald-500/15";
     preview.innerHTML =
-      '<div class="h-10 w-10 animate-spin rounded-full border-2 border-slate-600 border-t-emerald-500"></div>' +
-      '<p class="text-sm text-slate-300">Generating…</p>';
+      '<div class="pointer-events-none absolute inset-0 bg-gradient-to-br from-emerald-500/[0.07] via-transparent to-teal-500/[0.05]"></div>' +
+      '<div class="relative z-10 flex w-full max-w-lg flex-col items-center gap-8 px-4 py-6">' +
+      '  <div class="w-full space-y-3 rounded-2xl border border-zinc-700/50 bg-zinc-900/40 p-4 shadow-inner shadow-black/30 backdrop-blur-sm">' +
+      '    <div class="flex aspect-video w-full items-center justify-center rounded-xl bg-gradient-to-br from-zinc-800/90 to-zinc-900/80">' +
+      '      <div class="h-16 w-24 animate-pulse rounded-lg border border-emerald-500/25 bg-zinc-950/50"></div>' +
+      '    </div>' +
+      '    <div class="space-y-2">' +
+      '      <div class="h-2.5 w-[85%] max-w-full animate-pulse rounded-full bg-zinc-700/70"></div>' +
+      '      <div class="h-2.5 w-[60%] max-w-full animate-pulse rounded-full bg-zinc-600/60"></div>' +
+      '      <div class="h-2.5 w-[40%] max-w-full animate-pulse rounded-full bg-zinc-600/50"></div>' +
+      '    </div>' +
+      '  </div>' +
+      '  <div class="flex flex-col items-center gap-4">' +
+      '    <div class="relative h-14 w-14">' +
+      '      <div class="absolute inset-0 animate-pulse rounded-full bg-emerald-400/30 blur-md"></div>' +
+      '      <div class="relative h-14 w-14 animate-spin rounded-full border-2 border-emerald-500/35 border-t-emerald-400 shadow-[0_0_24px_rgba(16,185,129,0.45)]"></div>' +
+      '    </div>' +
+      '    <p class="text-center text-sm font-medium tracking-wide text-zinc-300">AI is dreaming<span class="opacity-70">…</span></p>' +
+      '    <p class="text-center text-[11px] font-medium uppercase tracking-[0.25em] text-emerald-500/60">Rendering latent space</p>' +
+      '  </div>' +
+      '</div>';
   }
   function setPreviewImage(url) {
     closeTaskWebSocket();
@@ -162,15 +358,17 @@
       return;
     }
     preview.className =
-      "flex flex-1 items-center justify-center overflow-hidden rounded-lg border border-slate-700 bg-slate-950 p-2";
+      previewBaseClass +
+      " overflow-hidden border-zinc-700/50 bg-zinc-950/60 p-4 sm:p-6";
     preview.innerHTML =
       '<img src="' + url.replace(/"/g, "&quot;").replace(/</g, "&lt;") +
-      '" alt="Generated" class="max-h-[min(70vh,640px)] w-auto max-w-full rounded-md object-contain shadow-lg" />';
+      '" alt="Generated" class="max-h-[min(72vh,680px)] w-auto max-w-full rounded-xl object-contain shadow-[0_0_30px_rgba(16,185,129,0.2)] shadow-2xl shadow-black/50 ring-1 ring-white/5" />';
   }
   function setPreviewError(msg) {
     closeTaskWebSocket();
     preview.className =
-      "flex flex-1 items-center justify-center rounded-lg border border-red-900/50 bg-red-950/30 p-4 text-center text-sm text-red-300";
+      previewBaseClass +
+      " border-red-900/40 bg-red-950/20 text-red-300/95";
     preview.textContent = msg || "Something went wrong.";
   }
 
@@ -205,6 +403,10 @@
         return;
       }
       var st = msg.status;
+      if (st === "PENDING") {
+        setPreviewLoading();
+        return;
+      }
       if (st === "COMPLETED") {
         taskStreamFinished = true;
         btnGen.disabled = false;
